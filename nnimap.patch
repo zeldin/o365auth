@@ -1,0 +1,22 @@
+--- a/lisp/gnus/nnimap.el	2022-03-11 08:04:21.000000000 +0100
++++ b/lisp/gnus/nnimap.el	2022-12-05 15:42:11.832935587 +0100
+@@ -588,8 +588,19 @@
+ 
+ (autoload 'rfc2104-hash "rfc2104")
+ 
++(defun nnimap-make-o365-access-token (user password)
++  (string-trim
++   (shell-command-to-string
++    (format "%s --user %s --password %s"
++            (shell-quote-argument "/usr/local/bin/o365auth")
++            (shell-quote-argument user)
++            (shell-quote-argument password)))))
++
+ (defun nnimap-login (user password)
+   (cond
++   ((eq nnimap-authenticator 'o365)
++    (nnimap-command  "AUTHENTICATE XOAUTH2 %s"
++                     (nnimap-make-o365-access-token user password)))
+    ;; Prefer plain LOGIN if it's enabled (since it requires fewer
+    ;; round trips than CRAM-MD5, and it's less likely to be buggy),
+    ;; and we're using an encrypted connection.

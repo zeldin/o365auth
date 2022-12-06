@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+
+import sys
+import msal
+import argparse
+import base64
+import os
+
+# Thunderbird credentials
+clientid = "08162f7c-0fd2-4200-a84a-f25a4db0b584"
+clientsecret = "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82"
+
+conf = {
+    "authority": "https://login.microsoftonline.com/organizations",
+    "client_id": clientid,
+    "client_secret": clientsecret,
+    "scope": ['https://outlook.office365.com/.default'],
+}
+
+def get_access_token(conf):
+    if conf.get("client_secret"):
+        app = msal.ConfidentialClientApplication(conf['client_id'], client_credential=conf["client_secret"], authority=conf['authority'])
+    else:
+        app = msal.PublicClientApplication(conf['client_id'], authority=conf['authority'])
+    return app.acquire_token_by_username_password(conf['login'], conf['password'], scopes=conf['scope'])
+
+def generate_auth_string(user, token):
+    return f"user={user}\x01auth=Bearer {token}\x01\x01"    
+
+def parse_authinfo(filename):
+    with open(filename) as f:
+        for line in f:
+            line = line.strip().split()
+            attrs = {}
+            for key, value in zip(line[0::2], line[1::2]):
+                attrs[key] = value
+            yield attrs
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--machine')
+    parser.add_argument('--user')
+    parser.add_argument('--password')
+    args = parser.parse_args()
+    conf['machine'] = args.machine
+    conf['login'] = args.user
+    conf['password'] = args.password
+
+    if conf['machine']:
+        for attrs in parse_authinfo(os.path.expanduser('~/.authinfo')):
+            if attrs.get('machine') == conf['machine']:
+                conf["login"] = attrs.get('login')
+                conf["password"] = attrs.get('password')
+                break
+        if not conf.get('password') or not conf.get('password'):
+            print('Missing login or password for machine %s' % (conf['machine'],), file=sys.stderr)
+            sys.exit(1)
+
+    if not conf.get('password') or not conf.get('password'):
+        print('Missing login or password')
+        sys.exit(1)
+            
+    result = get_access_token(conf)
+
+    if "access_token" in result:
+        auth_string = generate_auth_string(conf["login"],
+                                           result['access_token'])
+        print(base64.b64encode(auth_string.encode("utf-8")).decode('ascii'))
+    else:
+        print("Error: %s" % (result.get("error"),), file=sys.stderr)
+        print(result.get("error_description"), file=sys.stderr)
+        print(result.get("correlation_id"), file=sys.stderr)
+        sys.exit(1)
