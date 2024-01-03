@@ -3,6 +3,7 @@
 import sys
 import msal
 import argparse
+import atexit
 import base64
 import os
 
@@ -15,13 +16,45 @@ conf = {
     "client_id": clientid,
     "client_secret": clientsecret,
     "scope": ['https://outlook.office365.com/.default'],
+    "token_cache": "~/.o365tokencache",
+    "auth_code_flow": True
 }
 
 def get_access_token(conf):
+
+    token_cache = None
+    if conf.get("token_cache"):
+        fn = os.path.expanduser(conf['token_cache'])
+        token_cache = msal.SerializableTokenCache()
+        if os.path.exists(fn):
+            with open(fn, "r") as f:
+                token_cache.deserialize(f.read())
+        atexit.register(lambda:
+                        open(fn, "w").write(token_cache.serialize())
+                        if token_cache.has_state_changed else None)
+
     if conf.get("client_secret"):
-        app = msal.ConfidentialClientApplication(conf['client_id'], client_credential=conf["client_secret"], authority=conf['authority'])
+        app = msal.ConfidentialClientApplication(conf['client_id'], client_credential=conf["client_secret"], authority=conf['authority'], token_cache=token_cache)
     else:
-        app = msal.PublicClientApplication(conf['client_id'], authority=conf['authority'])
+        app = msal.PublicClientApplication(conf['client_id'], authority=conf['authority'], token_cache=token_cache)
+
+    acc = app.get_accounts(username=conf['login'])
+    if acc:
+        result = app.acquire_token_silent(scopes=conf['scope'],
+                                          account=acc[0])
+        if result and "access_token" in result:
+            return result
+
+    if conf.get("auth_code_flow"):
+        with msal.oauth2cli.AuthCodeReceiver() as receiver:
+            flow = app.initiate_auth_code_flow(scopes=conf['scope'],
+                                               redirect_uri="http://localhost:%d" %
+                                               (receiver.get_port(),),
+                                               login_hint=conf.get('login'))
+            auth_response = receiver.get_auth_response(auth_uri=flow['auth_uri'],
+                                                       state=flow['state'])
+            return app.acquire_token_by_auth_code_flow(flow, auth_response,
+                                                       scopes=conf['scope'])
     return app.acquire_token_by_username_password(conf['login'], conf['password'], scopes=conf['scope'])
 
 def generate_auth_string(user, token):
