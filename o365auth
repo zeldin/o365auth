@@ -7,9 +7,8 @@ import atexit
 import base64
 import os
 
-# Thunderbird credentials
-clientid = "08162f7c-0fd2-4200-a84a-f25a4db0b584"
-clientsecret = "TxRBilcHdC6WGBee]fs?QR:SJ8nI[g82"
+clientid = "b7230c62-6fda-4fad-bea6-0b9dd2013d05"
+clientsecret = "fim8Q~Nvjq4AATOPiXXW2GozNpAeUGwZa1YXYa7p"
 
 conf = {
     "authority": "https://login.microsoftonline.com/organizations",

@@ -8,10 +8,8 @@ It uses the [msal](
 https://github.com/AzureAD/microsoft-authentication-library-for-python)
 module for performing the actual token retrieval.
 
-The default client id and secret used are those of Thunderbird
-(so you will need to permit access by that client first), but it
-should be simple enough to replace them with those of your own client
-if so desired.
+The default client id and secret used are for "Marcus' OAUTH hack",
+you can replace them with those of your own client if so desired.
 
 Also included is a patch to the file `nnimap.el` of
 [GNUS](http://www.gnus.org/) to add a new `nnimap-authenticator`
